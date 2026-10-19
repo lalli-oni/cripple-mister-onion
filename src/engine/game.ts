@@ -160,6 +160,12 @@ function clone(state: GameState): GameState {
   };
 }
 
+/** "Rincewind calls" but "You call". */
+function does(p: Player, verb: string): string {
+  // Drop the third-person "s" from the first word for the human player.
+  return `${p.name} ${p.isHuman ? verb.replace(/[sS](?=\s|$)/, '') : verb}`;
+}
+
 function say(state: GameState, line: string) {
   state.log.push(line);
   if (state.log.length > 200) state.log.splice(0, state.log.length - 200);
@@ -266,7 +272,7 @@ export function applyAction(prev: GameState, action: Action, random: () => numbe
         state.discards.push(...me.hand.splice(i, 1));
       }
       for (let i = 0; i < ids.length; i++) me.hand.push(draw(state));
-      say(state, `${me.name} ${ids.length ? `swaps ${ids.length}` : 'stands pat'}.`);
+      say(state, `${ids.length ? `${does(me, 'swaps')} ${ids.length}` : does(me, 'stands pat')}.`);
       state.queue.shift();
       if (state.queue.length) state.turn = state.queue[0];
       else beginBetting(state, 'bet1');
@@ -276,11 +282,11 @@ export function applyAction(prev: GameState, action: Action, random: () => numbe
     case 'bet2': {
       if (action.type === 'fold') {
         me.folded = true;
-        say(state, `${me.name} folds.`);
+        say(state, `${does(me, 'folds')}.`);
       } else if (action.type === 'call') {
         const amt = callAmount(state, me);
         put(state, me, amt);
-        say(state, amt ? `${me.name} calls ${amt}.` : `${me.name} checks.`);
+        say(state, amt ? `${does(me, 'calls')} ${amt}.` : `${does(me, 'checks')}.`);
       } else if (action.type === 'raise') {
         if (!canRaise(state, me)) return prev;
         const target = state.currentBet + state.settings.stake;
@@ -288,7 +294,7 @@ export function applyAction(prev: GameState, action: Action, random: () => numbe
         put(state, me, amt);
         state.currentBet = Math.max(state.currentBet, me.roundBet);
         state.raisesThisRound++;
-        say(state, `${me.name} raises to ${state.currentBet}.`);
+        say(state, `${does(me, 'raises')} to ${state.currentBet}.`);
         // Everyone else still in must answer the raise.
         state.toAct = seatOrder(state).filter((id) => id !== me.id);
         rotateFrom(state, me.id);
@@ -301,7 +307,7 @@ export function applyAction(prev: GameState, action: Action, random: () => numbe
       const onTable = tableDeclaration(state);
       if (action.type === 'throwIn') {
         state.showdown.push({ playerId: me.id, declaration: null });
-        say(state, `${me.name} throws in.`);
+        say(state, `${does(me, 'throws')} in.`);
       } else if (action.type === 'declare') {
         const cards = action.cardIds.map((id) => me.hand.find((c) => c.id === id)).filter((c): c is Card => !!c);
         const decl = classifyGroup(cards, ruleOptions(state));
@@ -311,12 +317,12 @@ export function applyAction(prev: GameState, action: Action, random: () => numbe
         if (decl.nullEights > 0) state.nullEightUsed = true;
         if (decl.crippler) {
           const victim = state.players[onTable!.playerId];
-          say(state, `${me.name} CRIPPLES ${victim.name}'s ${onTable!.declaration!.label} with a ${decl.label}!`);
+          say(state, `${does(me, 'CRIPPLES')} ${victim.name}'s ${onTable!.declaration!.label} with a ${decl.label}!`);
           state.crippled = true;
           finishHand(state, [me.id]);
           return state;
         }
-        say(state, `${me.name} shows a ${decl.label}${decl.nullEights ? ` (${decl.nullEights} null eight${decl.nullEights > 1 ? 's' : ''})` : ''}.`);
+        say(state, `${does(me, 'shows')} a ${decl.label}${decl.nullEights ? ` (${decl.nullEights} null eight${decl.nullEights > 1 ? 's' : ''})` : ''}.`);
       } else return prev;
       state.queue.shift();
       if (state.queue.length) state.turn = state.queue[0];
